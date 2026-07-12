@@ -1,0 +1,16 @@
+theme: minima
+title: "chaos's homepage"
+description: "灵光一闪"
+author: chaos
+lang: zh
+
+url: "https://alvenchen.github.io"
+baseurl: ""
+
+permalink: /:year/:month/:day/:title/
+
+header_pages:
+  - about.md
+
+minima:
+  date_format: "%Y-%m-%d"
