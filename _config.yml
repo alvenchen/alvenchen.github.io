@@ -9,8 +9,6 @@ baseurl: ""
 
 permalink: /:year/:month/:day/:title/
 
-header_pages:
-  - about.md
 
 minima:
   date_format: "%Y-%m-%d"
