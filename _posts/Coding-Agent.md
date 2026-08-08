@@ -1,12 +1,28 @@
+---
+layout: post
+title: "Coding-Agent"
+date: 2026-08-08
+categories: tech
+---
+
 # Coding-Agent
 
-主流的Coding Agent早已跨越了所谓的Agent范式的时代(Reflection、ReAct、Planning等)，而是以Agent loop为核心的多范式结合。
+## 整体结构
 
-一个有意思的事情是，它们(`codex, opencode, reasonix, zed`等)的核心流程都相同:
+主流的Coding Agent(`codex, opencode, reasonix, zed`等)都是
+- 基于ReAct范式的编排方式
+- 以Agent loop为框架
+- 以工具调用为核心的
 
-用户输入->一次->输出
+基本流程都可以简化为:
 
-而一次Turn是包含了核心为 `LLM请求、工具调用` 的loop，一次Turn也可以理解为一个AgentTask。
+```mermaid
+flowchart LR
+    A[用户输入] --> B[Turn]
+    B --> C[输出]
+```
+
+而一次Turn是包含了核心为 `LLM请求、工具调用` 的loop，一次Turn也可以理解为一个`AgentTask`。
 
 下面是一个简化的完整的Turn：
 
@@ -25,21 +41,28 @@ flowchart TD
     HasCalls -->|是| ExecTools[executeOne × N<br/>parse → policy → exec]
     ExecTools --> AddResult[session.Add<br/>tool 结果] --> Loop
 ```
+- 其中`采样一轮`是为了拼接上下文、恢复异常中断等。
 
-其中`采样一轮`是为了拼接上下文、恢复异常中断等。
+真实的流程会稍微复杂点。比如会在每次loop时，判断
+- 要不要压缩
+- 为llm添加MCP、skill的描述
+- 防注入安全校验
+- 丰富的内置工具、沙箱机制等。
 
-真实的流程会稍微复杂点。比如会在每次loop时，判断要不要压缩；为llm添加MCP、skill的描述；丰富的内置工具；沙箱机制等。
+## agent差异
 
-## reasonix
-不同的agent间有会有些差别，比如reasonix在处理input前，默认使用plan模式，非可选，蕴含着plan一定能提高任务质量的理念; 
+不同的agent有的是为自家模型量身定制的武器，有的则是为了探索新模式。
 
-新增了PrefixShape的逻辑，每一次loop前先先判断本次会话的shape或者说指纹(`prompt + tools + memory`),让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
+### reasonix
+
+- reasonix在处理input前，默认使用plan模式，非可选，蕴含着plan一定能提高任务质量的理念; 
+
+- 新增了PrefixShape的逻辑，每一次loop前先先判断本次会话的shape或者说指纹(`prompt + tools + memory`)，让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
 
 
+### codex
 
-## codex
-
-在放个codex的时序图横向对比下：
+通过codex放个与之前简化Turn流程对比稍微详细点的时序图：
 
 ```mermaid
 sequenceDiagram
@@ -114,12 +137,12 @@ sequenceDiagram
 ```
 
 
-## Zed
+### Zed
 
-Zed的创新在于把Agent抽象出来，用ACP把自己置于agent之上的位置，专注于和用户交互
-实际的内置agent流程也差不多
+Zed的创新在于用ACP把Agent这一层抽象出来，可以让用户快速切换agent，它自己则专注于快速处理和用户的交互。
+实际测下来会有些小bug，比如某些工具在处理任务时一直会失败，实际上切换agent作用也不大，因为前面说了，自家模型配自家agent，好马配好鞍才是最优解。
 
-## tools
+### tools 对比
 
 如果大脑（模型）一样、方法论（agent loop）一样，指导方针（prompt）一样，那还有什么能拉开agent间的差距呢？答案是tools，tools是agent的武器，更是利器。
 
