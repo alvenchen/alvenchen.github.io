@@ -57,12 +57,12 @@ flowchart TD
 
 - reasonix在处理input前，默认使用plan模式，非可选，蕴含着plan一定能提高任务质量的理念; 
 
-- 新增了PrefixShape的逻辑，每一次loop前先先判断本次会话的shape或者说指纹(`prompt + tools + memory`)，让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
+- 新增了PrefixShape的逻辑，每一次loop前先判断本次会话的shape或者说指纹(`prompt + tools + memory`)，让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
 
 
 ### codex
 
-通过codex放个与之前简化Turn流程对比稍微详细点的时序图：
+通过分析codex，放个与之前简化Turn流程对比稍微详细点的时序图：
 
 ```mermaid
 sequenceDiagram
