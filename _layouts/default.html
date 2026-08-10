@@ -1,27 +1,11 @@
 <!-- 引入 Mermaid 库 -->
 <script type="module">
-    import mermaid from 'https://jsdelivr.net';
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 
     // 初始化配置，设置主题
     mermaid.initialize({
-        startOnLoad: false, // 设为 false，等我们转换完 DOM 后再加载
+        startOnLoad: true,
         theme: 'default'     // 可选: 'dark', 'forest', 'neutral'
     });
 
-    // 查找 Jekyll 生成的所有 mermaid 代码块并转换为 div
-    document.addEventListener("DOMContentLoaded", function () {
-        const blocks = document.querySelectorAll('pre code.language-mermaid, pre code.mermaid');
-        blocks.forEach((block) => {
-            const div = document.createElement('div');
-            div.className = 'mermaid';
-            div.textContent = block.textContent;
-
-            // 替换原本的 pre 标签
-            const pre = block.parentElement;
-            pre.setViewTarget ? pre.setViewTarget(div) : pre.parentElement.replaceChild(div, pre);
-        });
-
-        // 手动触发 Mermaid 渲染
-        mermaid.run();
-    });
 </script>
