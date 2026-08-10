@@ -12,3 +12,9 @@ permalink: /:year/:month/:day/:title/
 
 minima:
   date_format: "%Y-%m-%d"
+
+plugins:
+  - jekyll-feed
+
+include:
+  - _includes
