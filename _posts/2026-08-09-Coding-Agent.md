@@ -10,7 +10,7 @@ categories: tech
 ## 整体结构
 
 主流的Coding Agent(`codex, opencode, reasonix, zed`等)都是
-- 基于ReAct范式的编排方式
+- 基于ReAct范式的变体
 - 以Agent loop为框架
 - 以工具调用为核心的
 
@@ -55,10 +55,15 @@ flowchart TD
 
 ### reasonix
 
-- reasonix在处理input前，默认使用plan模式，非可选，蕴含着plan一定能提高任务质量的理念; 
+前面说了主流的agent都是ReAct的变体，reasonix的变在于添加了Plan-and-Execute、添加了工程性的鲁棒机制等。
+
+- 在处理input前，进行路由决策，判断哪些turn需要plan; 不像其他agent，plan是用户手动触发的。
+
+- Loop guards，在工程上对一些异常情况做处理，防止流程风暴。
 
 - 新增了PrefixShape的逻辑，每一次loop前先判断本次会话的shape或者说指纹(`prompt + tools + memory`)，让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
 
+- YOLO功能，直接自动允许所有操作，不用再每次授权：不用考虑安全、绝对效率优先。
 
 ### codex
 
