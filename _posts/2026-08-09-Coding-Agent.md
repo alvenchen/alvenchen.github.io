@@ -1,11 +1,13 @@
 ---
 layout: post
-title: "Coding-Agent"
-date: 2026-08-08
+title: "Coding-Agent现状与展望"
+date: 2026-08-21
 categories: tech
 ---
 
-# Coding-Agent
+# Coding-Agent 现状与展望
+
+
 
 ## 整体结构
 
@@ -40,6 +42,7 @@ flowchart TD
     HasCalls -->|否| Done[返回最终回答] --> End
     HasCalls -->|是| ExecTools[executeOne × N<br/>parse → policy → exec]
     ExecTools --> AddResult[session.Add<br/>tool 结果] --> Loop
+
 ```
 - 其中`采样一轮`是为了拼接上下文、恢复异常中断等。
 
@@ -55,97 +58,30 @@ flowchart TD
 
 ### reasonix
 
-前面说了主流的agent都是ReAct的变体，reasonix的变在于添加了Plan-and-Execute、添加了工程性的鲁棒机制等。
+前面说了主流的agent都是ReAct的变体，reasonix的变在于添加了Plan-and-Execute`双模型Coordinator`架构、添加了工程性的鲁棒机制等。
 
-- 在处理input前，进行路由决策，判断哪些turn需要plan; 不像其他agent，plan是用户手动触发的。
+- 在处理input前，默认进行路由决策，判断哪些turn需要plan; 不像其他agent，plan是用户手动触发的。
 
-- Loop guards，在工程上对一些异常情况做处理，防止流程风暴。
+- `Loop guards`，在工程上对一些异常情况做处理，防止流程风暴。
 
 - 新增了PrefixShape的逻辑，每一次loop前先判断本次会话的shape或者说指纹(`prompt + tools + memory`)，让用户能观察到一次请求是否真的命中缓存，揭示了服务端的cache逻辑。
+
+- 多种死循环护栏`perTurnState`, 比如工具调用出现循环的失败或成功，会重新组织可见工具和prompt给模型重新评估。
+
+- `Evidence ledger`,每一次turn都记账，只有实际处理和LLM返回相匹配时才退出，避免被LLM带歪，导致实际任务失败。
 
 - YOLO功能，直接自动允许所有操作，不用再每次授权：不用考虑安全、绝对效率优先。
 
 ### codex
 
-通过分析codex，放个与之前简化Turn流程对比稍微详细点的时序图：
-
-```mermaid
-sequenceDiagram
-    participant User as 用户/TUI
-    participant Turn as run_turn
-    participant Sampling as run_sampling_request
-    participant Model as LLM 模型
-    participant Tools as ToolCallRuntime
-
-    User->>Turn: submit(user_input)
-
-    rect rgb(240, 248, 255)
-        Note over Turn: === 前置阶段 ===
-        Turn->>Turn: 1. run_pre_sampling_compact() 若 token 超限则压缩
-        Turn->>Turn: 2. 解析 MCP 服务器依赖
-        Turn->>Turn: 3. build_skills_and_plugins() 注入提示词
-    end
-
-    rect rgb(255, 250, 240)
-        Note over Turn,Model: === Agent 主循环 ===
-        loop needs_follow_up == true
-            Turn->>Turn: 4. 拉取 pending_input（用户追加消息）
-            Turn->>Turn: 5. clone_history().for_prompt() 组装 prompt
-
-            Turn->>Sampling: run_sampling_request(prompt)
-
-            rect rgb(245, 255, 245)
-                Note over Sampling,Model: === 采样请求 ===
-                Sampling->>Sampling: 6. build_prompt() 附加 instructions + tools
-                Sampling->>Model: 7. client_session.stream(prompt)
-                Model-->>Sampling: 流式 SSE 事件
-
-                loop 每个 ResponseEvent
-                    alt OutputItemAdded
-                        Sampling-->>User: turn_item_started（AgentMessage/工具调用）
-                    else ContentDelta
-                        Sampling-->>User: 流式推送文本增量
-                    else OutputItemDone (是 ToolCall)
-                        Sampling->>Sampling: record_conversation_items() 持久化
-                        Sampling->>Tools: tool_runtime.handle_tool_call() 异步入队
-                        Note over Sampling: needs_follow_up = true
-                    else OutputItemDone (是 Message)
-                        Sampling->>Sampling: finalize_non_tool_response_item()
-                        Sampling-->>User: turn_item_completed
-                    end
-                end
-
-                Sampling->>Sampling: 8. drain_in_flight() 等待工具执行完成
-                Sampling->>Sampling: 9. 结果写入对话历史
-            end
-
-            Sampling-->>Turn: SamplingRequestResult { needs_follow_up, last_agent_message }
-
-            rect rgb(255, 240, 240)
-                Note over Turn: === 后采样决策 ===
-                alt needs_follow_up && token_limit_reached
-                    Turn->>Turn: 10a. run_auto_compact() 压缩上下文 → continue
-                else needs_follow_up
-                    Note over Turn: 10b. 工具结果已写入历史 → continue<br/>模型在下一轮看到工具输出继续推理
-                else needs_follow_up == false
-                    Turn->>Turn: 10c. run_turn_stop_hooks()
-                    opt stop hook 要求继续
-                        Turn->>Turn: 注入 hook prompt → continue
-                    end
-                    Note over Turn: 否则 → break（turn 结束）
-                end
-            end
-        end
-    end
-
-    Turn-->>User: TurnComplete（last_agent_message）
-```
-
+ codex的orchestrator有很大区别，
+ 
+ - 工具执行的流水线固定为： 审批 → 沙箱选择 → 执行 → 失败降级重试
 
 ### Zed
 
 Zed的创新在于用ACP把Agent这一层抽象出来，可以让用户快速切换agent，它自己则专注于快速处理和用户的交互。
-实际测下来会有些小bug，比如某些工具在处理任务时一直会失败，实际上切换agent作用也不大，因为前面说了，自家模型配自家agent，好马配好鞍才是最优解。
+实际测下来会有些小bug，比如某些工具在处理任务时一直会失败，实际上切换agent作用也不大，自家马配自家鞍才是最优解。
 
 ### tools 对比
 
